@@ -2,7 +2,7 @@
 //
 
 #include "stdafx.h"
-#include "01_FirstOpenGL.h"
+#include "03_Transformations.h"
 
 // NOTE: this code is intended to illustrate usage of OpenGL.
 // It is NOT intended to illustrate good coding style or naming conventions!
@@ -102,7 +102,7 @@ int main(int argc, char* args[])
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-	SDL_Window* window = SDL_CreateWindow("My first OpenGL program", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
+	SDL_Window* window = SDL_CreateWindow("My first OpenGL program", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 600, 600, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
 
 	if (window == nullptr)
 	{
@@ -129,9 +129,15 @@ int main(int argc, char* args[])
 
 	// An array of 3 vectors which represents 3 vertices
 	static const GLfloat g_vertex_buffer_data[] = {
-		-1.0f, -1.0f, 0.0f,
-		1.0f, -1.0f, 0.0f,
-		0.0f,  1.0f, 0.0f,
+		-0.5f, -0.5f, 0.0f,
+		0.5f, -0.5f, 0.0f,
+		0.0f,  0.5f, 0.0f,
+	};
+
+	static const GLfloat g_colour_buffer_data[] = {
+		0.8f, 0.2f, 0.2f,
+		0.2f, 0.8f, 0.2f,
+		0.2f, 0.2f, 0.8f,
 	};
 
 	// This will identify our vertex buffer
@@ -143,12 +149,14 @@ int main(int argc, char* args[])
 	// Give our vertices to OpenGL.
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
+	GLuint colorbuffer;
+	glGenBuffers(1, &colorbuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_colour_buffer_data), g_colour_buffer_data, GL_STATIC_DRAW);
+
 	GLuint programID = loadShaders("vertex.glsl", "fragment.glsl");
 
-	GLuint myColourLocation = glGetUniformLocation(programID, "myColour");
-	GLuint timeLocation = glGetUniformLocation(programID, "time");
-
-	float red = 1, green = 0, blue = 0;
+	GLuint transformLocation = glGetUniformLocation(programID, "transform");
 
 	bool running = true;
 	while (running)
@@ -168,14 +176,6 @@ int main(int argc, char* args[])
 				case SDLK_ESCAPE:
 					running = false;
 					break;
-
-				case SDLK_r:
-					red = 1; green = 0; blue = 0;
-					break;
-
-				case SDLK_y:
-					red = 1; green = 1; blue = 0;
-					break;
 				}
 			}
 		}
@@ -184,9 +184,6 @@ int main(int argc, char* args[])
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		glUseProgram(programID);
-
-		glUniform3f(myColourLocation, red, green, blue);
-		glUniform1f(timeLocation, SDL_GetTicks() / 1000.0f);
 
 		// 1rst attribute buffer : vertices
 		glEnableVertexAttribArray(0);
@@ -199,9 +196,30 @@ int main(int argc, char* args[])
 			0,                  // stride
 			(void*)0            // array buffer offset
 			);
+
+		// 2nd attribute buffer : colors
+		glEnableVertexAttribArray(1);
+		glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+		glVertexAttribPointer(
+			1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+			3,                                // size
+			GL_FLOAT,                         // type
+			GL_FALSE,                         // normalized?
+			0,                                // stride
+			(void*)0                          // array buffer offset
+			);
+
 		// Draw the triangle !
+		glm::mat4 transform;
+		glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(transform));
 		glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+
+		// Do something with transform here
+		glUniformMatrix4fv(transformLocation, 1, GL_FALSE, glm::value_ptr(transform));
+		glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+
 		glDisableVertexAttribArray(0);
+		glDisableVertexAttribArray(1);
 
 		SDL_GL_SwapWindow(window);
 	}
